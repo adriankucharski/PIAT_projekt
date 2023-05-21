@@ -1,0 +1,5 @@
+/.vscode
+/datasets
+/w2v
+/lstm_models
+__pycache__
