@@ -3,3 +3,5 @@
 /w2v
 /lstm_models
 __pycache__
+/texts
+/generated_texts

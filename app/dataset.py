@@ -6,11 +6,23 @@ from pathlib import Path
 import pickle
 import re
 import tarfile
+from typing import List
 import zipfile
 import urllib.request
 from lxml import etree
 from nltk.tokenize import sent_tokenize, word_tokenize
 import tqdm
+
+
+def join(array: List[str], extra_regex_chars=r'.,?!:;()') -> List[str]:
+    joined = " ".join(array)
+    for s in extra_regex_chars:
+        if s in "([":
+            old = s + " "
+        else:
+            old = " " + s
+        joined = joined.replace(old, s)
+    return joined
 
 def download_and_extract_NKJP(url, output_folder):
     if not os.path.exists(output_folder):
@@ -76,7 +88,7 @@ def read_and_tokenize_books_3500(corpus_folder, extra_regex_chars = r''):
 
 def read_and_tokenize_texts(corpus_folder, encoding = 'utf8', errors = None, extra_regex_chars = r''):
     files = list(glob.glob(f"{corpus_folder}/*.txt", recursive=True))
-    with Pool(1) as pool:
+    with Pool(12) as pool:
         args = zip(files, itertools.repeat(encoding), itertools.repeat(errors), itertools.repeat(extra_regex_chars))
         ts = pool.starmap(read_and_tokenize_txt, tqdm.tqdm(args, total=len(files)))
 
@@ -84,6 +96,13 @@ def read_and_tokenize_texts(corpus_folder, encoding = 'utf8', errors = None, ext
     for _ts in ts:
         tokenized_sentences.extend(_ts)
     return tokenized_sentences
+
+def read_texts(corpus_folder, encoding = 'utf8', errors = None):
+    texts: List[str] = []
+    for path in glob.glob(os.path.join(corpus_folder, '*.txt')):
+        with open(path, 'r', encoding=encoding) as f:
+            texts.append(f.read())
+    return texts
 
 def read_and_tokenize_txt(txt_path: str, encoding = 'utf8', errors = None, extra_regex_chars = r''):
     try:
