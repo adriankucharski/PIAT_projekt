@@ -1,6 +1,7 @@
 import re
-from typing import Literal
-from keras.utils import pad_sequences
+from typing import List, Literal
+from keras import losses
+from keras.utils import pad_sequences, losses_utils
 from keras.layers import Embedding, LSTM, Dense, Dropout, Bidirectional
 from keras.preprocessing.text import Tokenizer
 from keras.models import Sequential, Model
@@ -18,6 +19,29 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 LEN_MIN_LIMIT = 5
 LEN_MAX_LIMIT = 50
 
+
+class WeightedSCCE(losses.Loss):
+    def __init__(
+        self, class_weight: List[float], from_logits=False, name="weighted_scce"
+    ):
+        if class_weight is None or all(v == 1.0 for v in class_weight):
+            self.class_weight = None
+        else:
+            self.class_weight = tf.convert_to_tensor(class_weight, dtype=tf.float32)
+        self.name = name
+        self.reduction = losses_utils.ReductionV2.NONE
+        self.unreduced_scce = losses.SparseCategoricalCrossentropy(
+            from_logits=from_logits, name=name, reduction=self.reduction
+        )
+
+    def __call__(self, y_true, y_pred, sample_weight=None):
+        loss = self.unreduced_scce(y_true, y_pred, sample_weight)
+        if self.class_weight is not None:
+            weight_mask = tf.gather(self.class_weight, y_true)
+            loss = tf.math.multiply(loss, weight_mask)
+        return loss
+
+    
 
 class PredictCallback(tf.keras.callbacks.Callback):
     def __init__(
@@ -74,6 +98,13 @@ class PredictCallback(tf.keras.callbacks.Callback):
         )
 
 
+def calculate_class_weights(tokenizer: Tokenizer, alpha: float = 1.0) -> List[float]:
+    num_classes = tokenizer.num_words
+    word_count = sorted(tokenizer.word_counts.values(), reverse=True)[:num_classes]
+    class_weights = sum(word_count) / np.array(word_count, dtype=float) ** alpha
+    val = np.concatenate([[0], class_weights])
+    return val / np.min(val[np.nonzero(val)])
+
 def create_model(max_sequence_len: int, total_words: int):
     model = Sequential()
     model.add(Embedding(total_words, 50, input_length=max_sequence_len))
@@ -86,15 +117,23 @@ def create_model(max_sequence_len: int, total_words: int):
     return model
 
 
-def create_model_v2(max_sequence_len: int, total_words: int):
+def create_model_v2(
+    max_sequence_len: int, total_words: int, class_weight: List[float] = None
+):
     model = Sequential()
-    model.add(Embedding(total_words, 75, input_length=max_sequence_len))
+    model.add(
+        Embedding(total_words, 50, input_length=max_sequence_len, mask_zero=False)
+    )
     model.add(Bidirectional(LSTM(512, return_sequences=True)))
-    model.add(Bidirectional(LSTM(512)))
-    model.add(Dense(256, activation="relu"))
+    model.add(Bidirectional(LSTM(512, return_sequences=True)))
     model.add(Dropout(0.2))
+    model.add(Bidirectional(LSTM(512)))
     model.add(Dense(total_words + 1, activation="softmax"))
-    model.compile(loss="sparse_categorical_crossentropy", optimizer=Adam(1e-3))
+
+    loss = "sparse_categorical_crossentropy"
+    if class_weight is not None:
+        loss = WeightedSCCE(class_weight)
+    model.compile(loss=loss, optimizer="adam")
     return model
 
 
