@@ -7,3 +7,4 @@ __pycache__
 /texts2
 /generated_texts
 /transformer_models
+.vscode
