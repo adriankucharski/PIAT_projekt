@@ -29,7 +29,7 @@ class WeightedSCCE(losses.Loss):
         else:
             self.class_weight = tf.convert_to_tensor(class_weight, dtype=tf.float32)
         self.name = name
-        self.reduction = losses_utils.ReductionV2.NONE
+        self.reduction = "none"
         self.unreduced_scce = losses.SparseCategoricalCrossentropy(
             from_logits=from_logits, name=name, reduction=self.reduction
         )
