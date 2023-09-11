@@ -4,4 +4,6 @@
 /lstm_models
 __pycache__
 /texts
+/texts2
 /generated_texts
+/transformer_models
