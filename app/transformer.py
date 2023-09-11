@@ -1,3 +1,7 @@
+# Adrian Kucharski
+# Code Based on https://keras.io/examples/generative/text_generation_with_miniature_gpt/
+
+
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
