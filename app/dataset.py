@@ -125,3 +125,31 @@ def dataset_generator(
         for i in range(0, len(predictors) - batch_size + 1, batch_size):
             indexes = p[i : i + batch_size]
             yield predictors[indexes], label[indexes]
+
+def dataset_generator2(
+    dataset: List[str],
+    tokenizer: Tokenizer,
+    sentence_min_len: int,
+    sentence_max_len: int,
+    skip: int,
+    batch_size=256,
+    shuffle=True,
+    for_transformer=False,
+    padding: Literal["pre", "post"] = "pre",
+):
+    while True:
+        word2int_sequences = get_sequence_of_tokens(
+            dataset, tokenizer, sentence_min_len, sentence_max_len, skip
+        )
+        predictors, label = generate_padded_sequences(
+            word2int_sequences, sentence_max_len, for_transformer, padding
+        )
+
+        p = (
+            np.random.permutation(len(predictors))
+            if shuffle
+            else np.arange(len(predictors))
+        )
+        for i in range(0, len(predictors) - batch_size + 1, batch_size):
+            indexes = p[i : i + batch_size]
+            yield [predictors[indexes], label[indexes]], label[indexes]
